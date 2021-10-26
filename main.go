@@ -4,6 +4,8 @@ import (
 	"context"
 	_ "embed"
 	"log"
+	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/endocrimes/keylight-go"
@@ -58,7 +60,7 @@ func togglePowerState(lg *keylight.LightGroup) *keylight.LightGroup {
 }
 
 func writeDiscoverConfig() error {
-	timeout := time.Duration(20 * time.Second)
+	timeout := time.Duration(5 * time.Second)
 	devicesCh, err := discoverLights()
 	if err != nil {
 		return err
@@ -67,7 +69,7 @@ func writeDiscoverConfig() error {
 	count := 0
 
 	var allLights []*keylight.Device
-	dAllLights := systray.AddMenuItem("All Lights", "")
+	dAllLights := systray.AddMenuItem("Power Toggle All", "")
 	dAllLights.Enable()
 	systray.AddSeparator()
 
@@ -85,16 +87,17 @@ func writeDiscoverConfig() error {
 		}
 	}(dAllLights)
 
+loop:
 	for {
 		select {
 		case device := <-devicesCh:
 			if device == nil {
-				return nil
+				break loop
 			}
 
 			allLights = append(allLights, device)
 
-			dName := systray.AddMenuItem(device.Name, "")
+			dName := systray.AddMenuItem(strings.ReplaceAll(device.Name, `\`, ""), "")
 			dName.Enable()
 			go func(dName *systray.MenuItem) {
 				for {
@@ -109,9 +112,28 @@ func writeDiscoverConfig() error {
 			}(dName)
 			count++
 		case <-time.After(timeout):
-			return nil
+			break loop
 		}
 	}
+	systray.AddSeparator()
+
+	settings := systray.AddMenuItem("Settings", "")
+	settings.Enable()
+	go func(settings *systray.MenuItem) {
+		for {
+			_, ok := <-settings.ClickedCh
+			if !ok {
+				break
+			}
+			cmd := exec.Command("keylight-control")
+			err := cmd.Run()
+			if err != nil {
+				log.Printf("Error: %v", err)
+			}
+		}
+	}(settings)
+
+	return nil
 }
 
 func onReady() {
