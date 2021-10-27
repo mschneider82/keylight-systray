@@ -13,10 +13,8 @@ import (
 )
 
 var (
-	//go:embed icon/on.png
-	iconOn []byte
-	//go:embed icon/off.png
-	iconOff []byte
+	//go:embed icon/elgatoicon.png
+	icon []byte
 )
 
 func main() {
@@ -137,7 +135,7 @@ loop:
 }
 
 func onReady() {
-	systray.SetIcon(iconOff)
+	systray.SetIcon(icon)
 
 	writeDiscoverConfig()
 
